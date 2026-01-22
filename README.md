@@ -35,9 +35,10 @@ A FastAPI-based REST API for managing products and orders.
    ```bash
    cp .env.example .env
    ```
-   Edit `.env` and update with your database credentials:
+   Edit `.env` and update with your credentials:
    ```
    DATABASE_URL=postgresql://postgres:yourpassword@localhost:5432/ecommerce_db
+   JWT_SECRET_KEY=your-secret-key-change-in-production
    ```
 
 6. **Run the server**
@@ -55,6 +56,12 @@ Once running, visit:
 
 ## API Endpoints
 
+### Authentication
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/register` | Register a new user |
+| POST | `/login` | Login and get JWT token |
+
 ### Products
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -65,22 +72,34 @@ Once running, visit:
 | DELETE | `/products/{id}` | Delete product |
 
 ### Orders
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/place-order` | Place a new order |
-| GET | `/orders` | List all orders |
-| GET | `/order/{id}` | Get order by ID |
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| POST | `/place-order` | Place a new order | Required |
+| GET | `/orders` | List all orders | - |
+| GET | `/order/{id}` | Get order by ID | - |
 
 ## Example Usage
+
+**Register a user:**
+```bash
+curl -X POST "http://127.0.0.1:8000/register?email=user@example.com&password=secret123"
+```
+
+**Login (get token):**
+```bash
+curl -X POST http://127.0.0.1:8000/login \
+  -d "username=user@example.com&password=secret123"
+```
 
 **Create a product:**
 ```bash
 curl -X POST "http://127.0.0.1:8000/products?name=Laptop&price=999.99"
 ```
 
-**Place an order:**
+**Place an order (requires auth):**
 ```bash
 curl -X POST http://127.0.0.1:8000/place-order \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
   -d '{"items": [{"product_id": 1, "quantity": 2}]}'
 ```

@@ -1,11 +1,13 @@
 from fastapi import FastAPI, HTTPException, Body
 from fastapi import HTTPException, Body, FastAPI, Depends, Response, Query
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from database import SessionLocal
-from models import Product, Order, OrderItem
+from models import Product, Order, OrderItem, User
 from typing import Optional
 from langdetect import detect
 from fastapi.middleware.cors import CORSMiddleware
+from auth import hash_password, verify_password, create_access_token, get_current_user
 
 
 app = FastAPI()
@@ -27,6 +29,35 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+###        Authentication           ###
+
+
+@app.post("/register")
+def register(email: str, password: str, db: Session = Depends(get_db)):
+    existing_user = db.query(User).filter(User.email == email).first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    hashed = hash_password(password)
+    user = User(email=email, hashed_password=hashed)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    return {"message": "User registered successfully", "user_id": user.id}
+
+
+@app.post("/login")
+def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == form_data.username).first()
+    if not user or not verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    access_token = create_access_token(data={"sub": user.email})
+    return {"access_token": access_token, "token_type": "bearer"}
+
 
 # To get all Products
 
@@ -117,9 +148,9 @@ def delete_product(product_id: int, db: Session = Depends(get_db)):
 
 
 @app.post("/place-order")
-def place_order(body=Body(...)):
+def place_order(body=Body(...), current_user: User = Depends(get_current_user)):
     """
-    Example JSON:
+    Requires authentication. Example JSON:
 
     {
         "items": [
